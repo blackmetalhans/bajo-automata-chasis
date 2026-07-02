@@ -5,8 +5,8 @@
     "lib": ["ES2023", "DOM"],
     "types": ["vite/client"],
     "paths": {
-      "bajo-automata-core": ["../bajo-automata-core/src"],
-      "bajo-automata-core/*": ["../bajo-automata-core/src/*"]
+      "bajo-automata-core": ["./packages/bajo-automata-core/src"],
+      "bajo-automata-core/*": ["./packages/bajo-automata-core/src/*"]
     },
     "allowArbitraryExtensions": true,
     "skipLibCheck": true,
@@ -24,5 +24,5 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src", "packages/bajo-automata-core/src"]
 }
