@@ -12,9 +12,13 @@ interface PathNode {
   cost?: number;
 }
 
+export type PlaybackState = 'stopped' | 'playing' | 'paused';
+
 export class MidiTransmitter {
   private midiOutput: MIDIOutput | null = null;
   private playbackTimeouts: number[] = [];
+  private playbackResolves: Array<() => void> = [];
+  private _playbackState: PlaybackState = 'stopped';
   
   // 5-string bass standard tuning (B0 to G2)
   // B0=23, E1=28, A1=33, D2=38, G2=43
@@ -22,6 +26,13 @@ export class MidiTransmitter {
 
   constructor() {
     this.initializeMidi();
+  }
+
+  /**
+   * Current transport state.
+   */
+  get playbackState(): PlaybackState {
+    return this._playbackState;
   }
 
   /**
@@ -90,12 +101,18 @@ export class MidiTransmitter {
       return;
     }
 
+    // Stop any prior playback before starting
+    this._cancelTimeouts();
+    this._playbackState = 'playing';
+
     const noteDuration = this.calculateNoteDuration(bpm);
     const velocity = 100; // MIDI velocity (0-127)
 
     console.log(`🎵 Playing sequence: ${path.length} notes @ ${bpm} BPM`);
 
     for (let i = 0; i < path.length; i++) {
+      if (this._playbackState !== 'playing') break;
+
       const node = path[i];
       const midiNote = this.calculateMidiNote(node.string, node.fret);
 
@@ -103,11 +120,13 @@ export class MidiTransmitter {
       this.midiOutput.send([0x90, midiNote, velocity]);
       console.log(`  ♪ Note ${i + 1}: String ${node.string}, Fret ${node.fret} → MIDI ${midiNote}`);
 
-      // Wait for note duration
+      // Wait for note duration (sleep resolves early if cancelled by pause/stop)
       await this.sleep(noteDuration * 0.8); // 80% duration for slight staccato
 
-      // Note OFF (0x80 = note off, channel 0)
+      // Note OFF (0x80 = note off, channel 0) — always send to prevent hanging notes
       this.midiOutput.send([0x80, midiNote, 0]);
+
+      if (this._playbackState !== 'playing') break;
 
       // Brief gap before next note (20% of duration)
       if (i < path.length - 1) {
@@ -115,23 +134,61 @@ export class MidiTransmitter {
       }
     }
 
-    console.log('✅ Sequence complete');
+    if (this._playbackState === 'playing') {
+      this._playbackState = 'stopped';
+      console.log('✅ Sequence complete');
+    }
   }
 
   /**
-   * Stop any ongoing playback
-   * Clears all scheduled timeouts and sends all notes off
+   * Pause any ongoing playback.
+   * Clears all scheduled timeouts and sends All Notes Off (CC 123) on channel 0.
+   */
+  pause(): void {
+    if (this._playbackState !== 'playing') return;
+    this._playbackState = 'paused';
+    this._cancelTimeouts();
+    this._allNotesOff();
+    console.log('⏸ Playback paused');
+  }
+
+  /**
+   * Stop any ongoing playback.
+   * Clears all scheduled timeouts and sends All Notes Off (CC 123) on channel 0.
+   */
+  stop(): void {
+    this._playbackState = 'stopped';
+    this._cancelTimeouts();
+    this._allNotesOff();
+    console.log('🛑 Playback stopped, all notes off');
+  }
+
+  /**
+   * Stop any ongoing playback (alias kept for backwards compatibility).
    */
   stopPlayback(): void {
-    // Clear all scheduled timeouts
-    this.playbackTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
-    this.playbackTimeouts = [];
+    this.stop();
+  }
 
-    // Send all notes off message (CC 123)
+  /**
+   * Send MIDI CC 123 (All Notes Off) on channel 0 to prevent hanging notes.
+   */
+  private _allNotesOff(): void {
     if (this.midiOutput) {
-      this.midiOutput.send([0xB0, 123, 0]); // All notes off
-      console.log('🛑 Playback stopped, all notes off');
+      this.midiOutput.send([0xB0, 123, 0]); // CC 123 = All Notes Off, channel 0
     }
+  }
+
+  /**
+   * Clear all pending timeout handles and immediately resolve any awaiting sleeps,
+   * so the async playSequence loop can observe the state change and exit cleanly.
+   */
+  private _cancelTimeouts(): void {
+    this.playbackTimeouts.forEach(id => clearTimeout(id));
+    this.playbackTimeouts = [];
+    // Resolve pending sleeps so the async loop exits rather than hanging forever
+    this.playbackResolves.forEach(resolve => resolve());
+    this.playbackResolves = [];
   }
 
   /**
@@ -140,8 +197,12 @@ export class MidiTransmitter {
    */
   private sleep(ms: number): Promise<void> {
     return new Promise(resolve => {
-      const timeoutId = window.setTimeout(resolve, ms);
+      const timeoutId = window.setTimeout(() => {
+        this.playbackResolves = this.playbackResolves.filter(r => r !== resolve);
+        resolve();
+      }, ms);
       this.playbackTimeouts.push(timeoutId);
+      this.playbackResolves.push(resolve);
     });
   }
 
