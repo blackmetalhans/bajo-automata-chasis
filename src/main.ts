@@ -1,6 +1,7 @@
 import './style.css';
 import { SvgFretboard } from './renderer/SvgFretboard';
-import { ViterbiRouter, Fretboard, PitchClass } from 'bajo-automata-core';
+import { ViterbiRouter, Fretboard } from 'bajo-automata-core';
+import { MarkovImproviser } from './generator/MarkovImproviser';
 
 // 1. Instanciar el renderizador vectorial
 const fretboard = new SvgFretboard({
@@ -15,30 +16,38 @@ const graph = new Fretboard();
 // 3. Instanciar el motor de programación dinámica
 const router = new ViterbiRouter(graph);
 
-// 4. Input: Escala D Dorian ascendente (El cerebro musical)
-// PitchClass toma un solo argumento numérico (0-11)
-// D=2, E=4, F#=6, G=7, A=9, B=11, C#=1, D=2
-const dDorianScale = [
-  new PitchClass(2),  // D
-  new PitchClass(4),  // E
-  new PitchClass(6),  // F#
-  new PitchClass(7),  // G
-  new PitchClass(9),  // A
-  new PitchClass(11), // B
-  new PitchClass(1),  // C#
-  new PitchClass(2)   // D
-];
+// 4. Instanciar el motor estocástico
+const improviser = new MarkovImproviser();
 
-// 5. Output: Cálculo de la matriz ergónomica usando Viterbi
-const optimalPath = router.findOptimalPath(dDorianScale);
+// 5. Función para generar y renderizar una nueva línea melódica
+function generateAndRender() {
+  // Generar secuencia usando Markov
+  const generatedSequence = improviser.generate(8);
+  
+  // Calcular ruta óptima usando Viterbi
+  const optimalPath = router.findOptimalPath(generatedSequence);
+  
+  // Transformar a formato de renderizado
+  const renderNodes = optimalPath.map(node => ({
+    string: node.string, 
+    fret: node.fret
+  }));
+  
+  // Renderizar en el fretboard
+  fretboard.renderPath(renderNodes);
+  
+  // Log para debug
+  console.log("Generated sequence:", generatedSequence.map(p => p.pitch));
+  console.log("Viterbi Path Cost:", router.calculatePathCost(optimalPath));
+}
 
-// 6. Puente de Transformación (PathNode tiene properties: string, fret, pitch, cost)
-// Los strings están en rango 0-4, lo que maneja SvgFretboard correctamente.
-const renderNodes = optimalPath.map(node => ({
-  string: node.string, 
-  fret: node.fret
-}));
+// 6. Conectar el botón de UI
+const generateBtn = document.getElementById('generate-btn');
+if (generateBtn) {
+  generateBtn.addEventListener('click', generateAndRender);
+} else {
+  console.error('Generate button not found in DOM');
+}
 
-// 7. Disparar el renderizado en el navegador
-fretboard.renderPath(renderNodes);
-console.log("Viterbi Path Cost:", router.calculatePathCost(optimalPath));
+// 7. Generar línea inicial al cargar la página
+generateAndRender();

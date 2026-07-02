@@ -5,8 +5,49 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>bajo-automata-chasis</title>
+    <style>
+      body {
+        background-color: #0a0a0a;
+        color: #e0e0e0;
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      }
+      #control-panel {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        background: rgba(20, 20, 20, 0.95);
+        border: 1px solid #333;
+        border-radius: 8px;
+        padding: 16px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      }
+      #generate-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 12px 24px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+      }
+      #generate-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px rgba(102, 126, 234, 0.5);
+      }
+      #generate-btn:active {
+        transform: translateY(0);
+      }
+    </style>
   </head>
   <body>
+    <div id="control-panel">
+      <button id="generate-btn">⚡ Generate Line</button>
+    </div>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
