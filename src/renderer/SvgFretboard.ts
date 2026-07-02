@@ -16,12 +16,12 @@ export class SvgFretboard {
   private readonly activeGroup: SVGGElement;
 
   private readonly VIEW_W = 1000;
-  private readonly VIEW_H = 250;
+  private readonly VIEW_H = 350;
 
   private readonly PAD_LEFT = 40;
   private readonly PAD_RIGHT = 20;
-  private readonly PAD_TOP = 30;
-  private readonly PAD_BOTTOM = 30;
+  private readonly PAD_TOP = 45;
+  private readonly PAD_BOTTOM = 45;
 
   private readonly strings: number;
   private readonly frets: number;
@@ -228,14 +228,27 @@ export class SvgFretboard {
       this.activeGroup.appendChild(poly);
     }
 
-    for (const { x, y } of coords) {
+    for (let i = 0; i < coords.length; i++) {
+      const { x, y } = coords[i];
       const circle = document.createElementNS(SVG_NS, 'circle') as SVGCircleElement;
       circle.setAttribute('cx', String(x));
       circle.setAttribute('cy', String(y));
-      circle.setAttribute('r', '8');
+      circle.setAttribute('r', '10');
       circle.setAttribute('fill', '#00e5ff');
       circle.setAttribute('filter', 'url(#cyan-glow)');
       this.activeGroup.appendChild(circle);
+
+      const label = document.createElementNS(SVG_NS, 'text') as SVGTextElement;
+      label.setAttribute('x', String(x));
+      label.setAttribute('y', String(y));
+      label.setAttribute('text-anchor', 'middle');
+      label.setAttribute('dominant-baseline', 'central');
+      label.setAttribute('font-size', '9');
+      label.setAttribute('font-weight', 'bold');
+      label.setAttribute('fill', '#0a2a2a');
+      label.setAttribute('pointer-events', 'none');
+      label.textContent = String(nodes[i].fret);
+      this.activeGroup.appendChild(label);
     }
   }
 }
