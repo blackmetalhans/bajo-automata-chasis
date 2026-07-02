@@ -1,6 +1,5 @@
 import './style.css';
 import { SvgFretboard } from './renderer/SvgFretboard';
-// Importamos tu núcleo matemático compilado
 import { ViterbiRouter, Fretboard, PitchClass } from 'bajo-automata-core';
 
 // 1. Instanciar el renderizador vectorial
@@ -10,40 +9,34 @@ const fretboard = new SvgFretboard({
   containerId: 'app',
 });
 
-// 2. Topología del Mástil (Afinación estándar de tu 5 cuerdas)
-const tuning = [
-  new PitchClass('B', 0),
-  new PitchClass('E', 1),
-  new PitchClass('A', 1),
-  new PitchClass('D', 2),
-  new PitchClass('G', 2)
-];
-const graph = new Fretboard(tuning, 24);
+// 2. Crear instancia del fretboard (usa afinación estándar hardcodeada)
+const graph = new Fretboard();
 
 // 3. Instanciar el motor de programación dinámica
 const router = new ViterbiRouter(graph);
 
 // 4. Input: Escala D Dorian ascendente (El cerebro musical)
+// PitchClass toma un solo argumento numérico (0-11)
+// D=2, E=4, F#=6, G=7, A=9, B=11, C#=1, D=2
 const dDorianScale = [
-  new PitchClass('D', 2),
-  new PitchClass('E', 2),
-  new PitchClass('F', 2),
-  new PitchClass('G', 2),
-  new PitchClass('A', 2),
-  new PitchClass('B', 2),
-  new PitchClass('C', 3),
-  new PitchClass('D', 3)
+  new PitchClass(2),  // D
+  new PitchClass(4),  // E
+  new PitchClass(6),  // F#
+  new PitchClass(7),  // G
+  new PitchClass(9),  // A
+  new PitchClass(11), // B
+  new PitchClass(1),  // C#
+  new PitchClass(2)   // D
 ];
 
-// 5. Output: Cálculo de la matriz ergónomica (El cerebro físico)
-const optimalPath = router.route(dDorianScale);
+// 5. Output: Cálculo de la matriz ergónomica usando Viterbi
+const optimalPath = router.findOptimalPath(dDorianScale);
 
-// 6. Puente de Transformación (Adaptar los tipos del Core al Chasis visual)
-// Nota: Ajusta 'stringIndex' y 'fretNumber' si las propiedades de tu ViterbiNode se llaman distinto.
-// Sumamos +1 al string porque tu renderizador SVG maneja cuerdas del 1 al 5.
+// 6. Puente de Transformación (PathNode tiene properties: string, fret, pitch, cost)
+// Los strings están en rango 0-4, lo que maneja SvgFretboard correctamente.
 const renderNodes = optimalPath.map(node => ({
-  string: node.stringIndex + 1, 
-  fret: node.fretNumber
+  string: node.string, 
+  fret: node.fret
 }));
 
 // 7. Disparar el renderizado en el navegador
