@@ -1,5 +1,6 @@
 import './style.css';
 import { SvgFretboard } from './renderer/SvgFretboard';
+import { TabRenderer } from './renderer/TabRenderer';
 import { ViterbiRouter, Fretboard } from 'bajo-automata-core';
 import { MarkovImproviser } from './generator/MarkovImproviser';
 import { MidiTransmitter } from './infrastructure/MidiTransmitter';
@@ -11,19 +12,26 @@ const fretboard = new SvgFretboard({
   containerId: 'app',
 });
 
-// 2. Crear instancia del fretboard (usa afinación estándar hardcodeada)
+// 2. Instanciar el renderizador de tablatura (se inyecta debajo del mástil)
+const tabRenderer = new TabRenderer('app');
+
+// 3. Crear instancia del fretboard (usa afinación estándar hardcodeada)
 const graph = new Fretboard();
 
-// 3. Instanciar el motor de programación dinámica
-const router = new ViterbiRouter(graph);
+// 4. Instanciar el motor de programación dinámica
+const router = new ViterbiRouter(graph, {
+  fretShiftWeight: 0.8,    // λ₁ – penaliza movimiento horizontal
+  stringJumpWeight: 0.5,   // λ₂ – penaliza salto de cuerda
+  maxFretStretch: 5,       // Hard constraint: |Δf| > 5 → transición inválida
+});
 
-// 4. Instanciar el motor estocástico
+// 5. Instanciar el motor estocástico
 const improviser = new MarkovImproviser();
 
-// 5. Instanciar el transmisor MIDI
+// 6. Instanciar el transmisor MIDI
 const midiTransmitter = new MidiTransmitter();
 
-// 6. Seleccionar elementos del UI
+// 7. Seleccionar elementos del UI
 const bpmSlider = document.getElementById('bpm-slider') as HTMLInputElement;
 const bpmValue = document.getElementById('bpm-value') as HTMLSpanElement;
 const entropySlider = document.getElementById('entropy-slider') as HTMLInputElement;
@@ -31,12 +39,12 @@ const entropyValue = document.getElementById('entropy-value') as HTMLSpanElement
 const rootSelect = document.getElementById('root-select') as HTMLSelectElement;
 const generateBtn = document.getElementById('generate-btn') as HTMLButtonElement;
 
-// 7. State variables
+// 8. State variables
 let currentBPM = 120;
 let currentEntropy = 50;
 let currentRootNote: number | null = 7; // G by default
 
-// 8. Hook up BPM slider
+// 9. Hook up BPM slider
 if (bpmSlider && bpmValue) {
   bpmSlider.addEventListener('input', (e) => {
     const target = e.target as HTMLInputElement;
@@ -82,6 +90,9 @@ function generateAndRender() {
   
   // Renderizar en el fretboard
   fretboard.renderPath(renderNodes);
+
+  // Renderizar tablatura dinámica debajo del mástil
+  tabRenderer.render(renderNodes);
   
   // Transmitir secuencia a DAW vía MIDI con BPM actual
   midiTransmitter.playSequence(optimalPath, currentBPM);
