@@ -7,6 +7,8 @@ import { PitchClass } from 'bajo-automata-core';
  * - Root notes and perfect fifths
  * - Step-wise (diatonic) motion
  * - Penalizes large dissonant leaps
+ * 
+ * Configurable entropy and root note preferences
  */
 export class MarkovImproviser {
   private readonly chromaticScale = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
@@ -41,9 +43,11 @@ export class MarkovImproviser {
   /**
    * Generate a melodic sequence using weighted Markov transitions
    * @param length - Number of notes to generate (default: 8)
+   * @param entropy - Randomness level 0-100 (default: 50). Higher = wider leaps, lower = more diatonic
+   * @param rootNote - Preferred root note 0-11 (default: null = use default root bias)
    * @returns Array of PitchClass objects
    */
-  generate(length: number = 8): PitchClass[] {
+  generate(length: number = 8, entropy: number = 50, rootNote: number | null = null): PitchClass[] {
     if (length < 1) {
       throw new Error('Length must be at least 1');
     }
@@ -51,12 +55,16 @@ export class MarkovImproviser {
     const sequence: number[] = [];
     
     // Start with a biased root note
-    sequence.push(this.selectWeightedPitch(this.rootBias));
+    if (rootNote !== null) {
+      sequence.push(rootNote);
+    } else {
+      sequence.push(this.selectWeightedPitch(this.rootBias));
+    }
 
     // Generate remaining notes using Markov transitions
     for (let i = 1; i < length; i++) {
       const currentPitch = sequence[sequence.length - 1];
-      const nextPitch = this.selectNextPitch(currentPitch);
+      const nextPitch = this.selectNextPitch(currentPitch, entropy, rootNote);
       sequence.push(nextPitch);
     }
 
@@ -66,8 +74,10 @@ export class MarkovImproviser {
 
   /**
    * Select next pitch based on interval weights from current pitch
+   * @param entropy - Randomness level 0-100. Higher = flatter distribution (more leaps)
+   * @param rootNote - Preferred root note for bias
    */
-  private selectNextPitch(currentPitch: number): number {
+  private selectNextPitch(currentPitch: number, entropy: number, rootNote: number | null): number {
     const weights = new Map<number, number>();
 
     // Calculate weights for all 12 chromatic pitches
@@ -81,9 +91,21 @@ export class MarkovImproviser {
       const baseWeight = this.transitionWeights.get(interval) || 1;
       
       // Apply root bias if applicable
-      const rootBonus = this.rootBias.get(targetPitch) || 1.0;
+      let rootBonus = 1.0;
+      if (rootNote !== null && targetPitch === rootNote) {
+        rootBonus = 2.5; // Strong bias to custom root
+      } else {
+        rootBonus = this.rootBias.get(targetPitch) || 1.0;
+      }
       
-      weights.set(targetPitch, baseWeight * rootBonus);
+      // Apply entropy factor
+      // Low entropy (0) = strong bias (use weights as-is)
+      // High entropy (100) = flatten distribution (average toward uniform)
+      const entropyFactor = entropy / 100;
+      const uniformWeight = 5; // Average weight value
+      const adjustedWeight = baseWeight * (1 - entropyFactor) + uniformWeight * entropyFactor;
+      
+      weights.set(targetPitch, adjustedWeight * rootBonus);
     }
 
     return this.selectWeightedPitch(weights);
