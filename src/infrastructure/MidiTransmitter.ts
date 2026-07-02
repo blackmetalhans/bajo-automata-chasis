@@ -17,6 +17,7 @@ export type PlaybackState = 'stopped' | 'playing' | 'paused';
 export class MidiTransmitter {
   private midiOutput: MIDIOutput | null = null;
   private playbackTimeouts: number[] = [];
+  private playbackResolves: Array<() => void> = [];
   private _playbackState: PlaybackState = 'stopped';
   
   // 5-string bass standard tuning (B0 to G2)
@@ -119,17 +120,13 @@ export class MidiTransmitter {
       this.midiOutput.send([0x90, midiNote, velocity]);
       console.log(`  ♪ Note ${i + 1}: String ${node.string}, Fret ${node.fret} → MIDI ${midiNote}`);
 
-      // Wait for note duration
+      // Wait for note duration (sleep resolves early if cancelled by pause/stop)
       await this.sleep(noteDuration * 0.8); // 80% duration for slight staccato
 
-      if (this._playbackState !== 'playing') {
-        // Note OFF before bailing out
-        this.midiOutput.send([0x80, midiNote, 0]);
-        break;
-      }
-
-      // Note OFF (0x80 = note off, channel 0)
+      // Note OFF (0x80 = note off, channel 0) — always send to prevent hanging notes
       this.midiOutput.send([0x80, midiNote, 0]);
+
+      if (this._playbackState !== 'playing') break;
 
       // Brief gap before next note (20% of duration)
       if (i < path.length - 1) {
@@ -183,11 +180,15 @@ export class MidiTransmitter {
   }
 
   /**
-   * Clear all pending timeout handles.
+   * Clear all pending timeout handles and immediately resolve any awaiting sleeps,
+   * so the async playSequence loop can observe the state change and exit cleanly.
    */
   private _cancelTimeouts(): void {
     this.playbackTimeouts.forEach(id => clearTimeout(id));
     this.playbackTimeouts = [];
+    // Resolve pending sleeps so the async loop exits rather than hanging forever
+    this.playbackResolves.forEach(resolve => resolve());
+    this.playbackResolves = [];
   }
 
   /**
@@ -196,8 +197,12 @@ export class MidiTransmitter {
    */
   private sleep(ms: number): Promise<void> {
     return new Promise(resolve => {
-      const timeoutId = window.setTimeout(resolve, ms);
+      const timeoutId = window.setTimeout(() => {
+        this.playbackResolves = this.playbackResolves.filter(r => r !== resolve);
+        resolve();
+      }, ms);
       this.playbackTimeouts.push(timeoutId);
+      this.playbackResolves.push(resolve);
     });
   }
 
