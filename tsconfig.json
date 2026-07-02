@@ -4,6 +4,11 @@
     "module": "esnext",
     "lib": ["ES2023", "DOM"],
     "types": ["vite/client"],
+    "baseUrl": ".",
+    "paths": {
+      "bajo-automata-core": ["../bajo-automata-core/src"],
+      "bajo-automata-core/*": ["../bajo-automata-core/src/*"]
+    },
     "allowArbitraryExtensions": true,
     "skipLibCheck": true,
 
