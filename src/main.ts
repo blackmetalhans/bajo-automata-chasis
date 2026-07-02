@@ -1,7 +1,7 @@
 import './style.css';
 import { SvgFretboard } from './renderer/SvgFretboard';
 // Importamos tu núcleo matemático compilado
-import { ViterbiRouter, FretboardGraph, PitchClass } from 'bajo-automata-core';
+import { ViterbiRouter, Fretboard, PitchClass } from 'bajo-automata-core';
 
 // 1. Instanciar el renderizador vectorial
 const fretboard = new SvgFretboard({
@@ -18,7 +18,7 @@ const tuning = [
   new PitchClass('D', 2),
   new PitchClass('G', 2)
 ];
-const graph = new FretboardGraph(tuning, 24);
+const graph = new Fretboard(tuning, 24);
 
 // 3. Instanciar el motor de programación dinámica
 const router = new ViterbiRouter(graph);
