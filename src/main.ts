@@ -1,60 +1,51 @@
-import './style.css'
-import typescriptLogo from './assets/typescript.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import { setupCounter } from './counter.ts'
+import './style.css';
+import { SvgFretboard } from './renderer/SvgFretboard';
+// Importamos tu núcleo matemático compilado
+import { ViterbiRouter, FretboardGraph, PitchClass } from 'bajo-automata-core';
 
-document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
-<section id="center">
-  <div class="hero">
-    <img src="${heroImg}" class="base" width="170" height="179">
-    <img src="${typescriptLogo}" class="framework" alt="TypeScript logo"/>
-    <img src="${viteLogo}" class="vite" alt="Vite logo" />
-  </div>
-  <div>
-    <h1>Get started</h1>
-    <p>Edit <code>src/main.ts</code> and save to test <code>HMR</code></p>
-  </div>
-  <button id="counter" type="button" class="counter"></button>
-</section>
+// 1. Instanciar el renderizador vectorial
+const fretboard = new SvgFretboard({
+  strings: 5,
+  frets: 24,
+  containerId: 'app',
+});
 
-<div class="ticks"></div>
+// 2. Topología del Mástil (Afinación estándar de tu 5 cuerdas)
+const tuning = [
+  new PitchClass('B', 0),
+  new PitchClass('E', 1),
+  new PitchClass('A', 1),
+  new PitchClass('D', 2),
+  new PitchClass('G', 2)
+];
+const graph = new FretboardGraph(tuning, 24);
 
-<section id="next-steps">
-  <div id="docs">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#documentation-icon"></use></svg>
-    <h2>Documentation</h2>
-    <p>Your questions, answered</p>
-    <ul>
-      <li>
-        <a href="https://vite.dev/" target="_blank">
-          <img class="logo" src="${viteLogo}" alt="" />
-          Explore Vite
-        </a>
-      </li>
-      <li>
-        <a href="https://www.typescriptlang.org" target="_blank">
-          <img class="button-icon" src="${typescriptLogo}" alt="">
-          Learn more
-        </a>
-      </li>
-    </ul>
-  </div>
-  <div id="social">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#social-icon"></use></svg>
-    <h2>Connect with us</h2>
-    <p>Join the Vite community</p>
-    <ul>
-      <li><a href="https://github.com/vitejs/vite" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#github-icon"></use></svg>GitHub</a></li>
-      <li><a href="https://chat.vite.dev/" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#discord-icon"></use></svg>Discord</a></li>
-      <li><a href="https://x.com/vite_js" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#x-icon"></use></svg>X.com</a></li>
-      <li><a href="https://bsky.app/profile/vite.dev" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#bluesky-icon"></use></svg>Bluesky</a></li>
-    </ul>
-  </div>
-</section>
+// 3. Instanciar el motor de programación dinámica
+const router = new ViterbiRouter(graph);
 
-<div class="ticks"></div>
-<section id="spacer"></section>
-`
+// 4. Input: Escala D Dorian ascendente (El cerebro musical)
+const dDorianScale = [
+  new PitchClass('D', 2),
+  new PitchClass('E', 2),
+  new PitchClass('F', 2),
+  new PitchClass('G', 2),
+  new PitchClass('A', 2),
+  new PitchClass('B', 2),
+  new PitchClass('C', 3),
+  new PitchClass('D', 3)
+];
 
-setupCounter(document.querySelector<HTMLButtonElement>('#counter')!)
+// 5. Output: Cálculo de la matriz ergónomica (El cerebro físico)
+const optimalPath = router.route(dDorianScale);
+
+// 6. Puente de Transformación (Adaptar los tipos del Core al Chasis visual)
+// Nota: Ajusta 'stringIndex' y 'fretNumber' si las propiedades de tu ViterbiNode se llaman distinto.
+// Sumamos +1 al string porque tu renderizador SVG maneja cuerdas del 1 al 5.
+const renderNodes = optimalPath.map(node => ({
+  string: node.stringIndex + 1, 
+  fret: node.fretNumber
+}));
+
+// 7. Disparar el renderizado en el navegador
+fretboard.renderPath(renderNodes);
+console.log("Viterbi Path Cost:", router.calculatePathCost(optimalPath));
